@@ -38,6 +38,9 @@
             trackBar2 = new TrackBar();
             trackBar3 = new TrackBar();
             richTextBox1 = new RichTextBox();
+            btn_Key = new Button();
+            key_selection_label = new Label();
+            voice_status_label = new Label();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBar2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBar3).BeginInit();
@@ -78,7 +81,7 @@
             // 
             // btnPath
             // 
-            btnPath.Location = new Point(17, 93);
+            btnPath.Location = new Point(17, 167);
             btnPath.Margin = new Padding(4, 5, 4, 5);
             btnPath.Name = "btnPath";
             btnPath.Size = new Size(107, 38);
@@ -90,7 +93,7 @@
             // path_selection_label
             // 
             path_selection_label.AutoSize = true;
-            path_selection_label.Location = new Point(17, 136);
+            path_selection_label.Location = new Point(17, 210);
             path_selection_label.Margin = new Padding(4, 0, 4, 0);
             path_selection_label.Name = "path_selection_label";
             path_selection_label.Size = new Size(171, 25);
@@ -126,11 +129,41 @@
             richTextBox1.TabIndex = 11;
             richTextBox1.Text = "";
             // 
+            // btn_Key
+            // 
+            btn_Key.Location = new Point(17, 91);
+            btn_Key.Name = "btn_Key";
+            btn_Key.Size = new Size(107, 38);
+            btn_Key.TabIndex = 12;
+            btn_Key.Text = "Key";
+            btn_Key.UseVisualStyleBackColor = true;
+            btn_Key.Click += btnSelectJson_Click;
+            // 
+            // key_selection_label
+            // 
+            key_selection_label.AutoSize = true;
+            key_selection_label.Location = new Point(17, 128);
+            key_selection_label.Name = "key_selection_label";
+            key_selection_label.Size = new Size(204, 25);
+            key_selection_label.TabIndex = 13;
+            key_selection_label.Text = ".json key is not selected!";
+            // 
+            // voice_status_label
+            // 
+            voice_status_label.AutoSize = true;
+            voice_status_label.Location = new Point(181, 15);
+            voice_status_label.Name = "voice_status_label";
+            voice_status_label.Size = new Size(0, 25);
+            voice_status_label.TabIndex = 14;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(653, 438);
+            Controls.Add(voice_status_label);
+            Controls.Add(key_selection_label);
+            Controls.Add(btn_Key);
             Controls.Add(richTextBox1);
             Controls.Add(trackBar3);
             Controls.Add(trackBar2);
@@ -162,5 +195,8 @@
         private TrackBar trackBar2;
         private TrackBar trackBar3;
         private RichTextBox richTextBox1;
+        private Button btn_Key;
+        private Label key_selection_label;
+        private Label voice_status_label;
     }
 }
