@@ -5,6 +5,7 @@ using WebRtcVadSharp;
 using Google.Cloud.Speech.V1;
 using Google.Apis.Auth.OAuth2;
 
+
 namespace MotoCap
 {
     public partial class Form1 : Form
@@ -14,10 +15,14 @@ namespace MotoCap
         private bool isRecording;
         private SpeechClient speechClient;
         private string outputFolderPath;
-        private Grpc.Core.Channel channel;
+        //private Grpc.Core.Channel channel;
         private Equalizer equalizer;
-        private readonly WebRtcVad vad;
-        private bool isVoiceDetected;
+        private bool speechDetected;
+        private WebRtcVad vad;
+
+        private int hertz_rate = 48000;
+
+
 
         // Define the equalizer bands (adjust as needed)
         private EqualizerBand[] bands = new EqualizerBand[]
@@ -30,12 +35,6 @@ namespace MotoCap
         public Form1()
         {
             InitializeComponent();
-
-            // Initialize the Voice Activity Detector
-            vad = new WebRtcVad
-            {
-                SampleRate = SampleRate.Is48kHz // Adjust the sample rate to match your audio input
-            };
 
             // Load Google Cloud service account credentials from the JSON file
             string jsonFilePath = "C:\\Users\\user\\source\\repos\\MotoCap\\MotoCap\\credentials\\api.json";
@@ -89,21 +88,27 @@ namespace MotoCap
         {
             if (outputFolderPath != null)
             {
-
                 if (!isRecording)
                 {
+
                     // Update UI
                     btnRecord.Enabled = false;
                     btnStop.Enabled = true;
                     record_status_label.Text = "recording";
+                    voice_status_label.Enabled = true;
 
                     waveInEvent = new WaveInEvent
                     {
-                        WaveFormat = new WaveFormat(44100, 16, 1) // Update sample rate and bit depth here
+                        WaveFormat = new WaveFormat(hertz_rate, 16, 1) // Update sample rate and bit depth here
                     };
 
+                    
                     waveInEvent.DataAvailable += WaveInEvent_DataAvailable;
                     writer = new WaveFileWriter($"{outputFolderPath}{DateTime.Now:yyyyMMdd_HHmmss}.wav", waveInEvent.WaveFormat);
+
+
+                 
+
                     waveInEvent.StartRecording();
                     isRecording = true;
                 }
@@ -112,7 +117,6 @@ namespace MotoCap
             {
                 MessageBox.Show("Please select where to save your recordings first!");
             }
-
         }
 
 
@@ -120,53 +124,25 @@ namespace MotoCap
         {
             if (isRecording)
             {
-
-                // Perform voice activity detection
-                var buffer = new byte[e.BytesRecorded];
-                Buffer.BlockCopy(e.Buffer, 0, buffer, 0, e.BytesRecorded);
-
-                // Calculate the root mean square (RMS) value of the buffer
-                double rms = CalculateRMS(buffer);
-
-                // Adjust the threshold value as needed
-                double threshold = 0.5; // Example threshold value
-
-                // Determine if the buffer contains voice or silence based on the threshold
-                var isSpeech = rms > threshold;
-
-                if (isSpeech)
-                {
-                    isVoiceDetected = true;
-                    voice_status_label.Text = "voice detected";
-                }
-                else
-                {
-                    isVoiceDetected = false;
-                    voice_status_label.Text = "silence";
-                }
-
-              
                 // Write the recorded audio data to the output file
                 writer.Write(e.Buffer, 0, e.BytesRecorded);
 
+                speechDetected = DoesFrameContainSpeech(e.Buffer);
 
+                // Update the UI control using Invoke
+                voice_status_label.Invoke(new Action(() =>
+                {
+                    voice_status_label.Text = speechDetected ? "voice detected" : "silence";
+                }));
             }
         }
 
-
-        private double CalculateRMS(byte[] buffer)
+         bool DoesFrameContainSpeech(byte[] audioFrame)
         {
-            double sum = 0;
-
-            for (int i = 0; i < buffer.Length; i += 2)
-            {
-                short sample = (short)((buffer[i + 1] << 8) | buffer[i]);
-                sum += sample * sample;
-            }
-
-            double rms = Math.Sqrt(sum / (buffer.Length / 2));
-            return rms;
+            using var vad = new WebRtcVad();
+            return vad.HasSpeech(audioFrame, SampleRate.Is48kHz, FrameLength.Is10ms);
         }
+
 
         private async void btnStop_Click(object sender, EventArgs e)
         {
@@ -181,13 +157,17 @@ namespace MotoCap
                 btnRecord.Enabled = true;
                 btnStop.Enabled = false;
                 record_status_label.Text = "stooped";
+                voice_status_label.Enabled = false;
 
                 // Save recorded audio file
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string outputFileName = $"Recording_{timestamp}.wav";
                 string outputFilePath = Path.Combine(outputFolderPath, outputFileName);
                 File.Move(writer.Filename, outputFilePath);
+
                 ConvertAudioToSpeech(outputFilePath);
+
+                isRecording = false;
 
                 // Perform speech-to-text conversion
                 //  ConvertSpeechToText();
@@ -199,10 +179,10 @@ namespace MotoCap
             if (File.Exists(outputFilePath))
             {
                 //var speech = SpeechClient.Create();
-                var response = speechClient.Recognize(new RecognitionConfig()
+                RecognizeResponse response = speechClient.Recognize(new RecognitionConfig()
                 {
                     Encoding = RecognitionConfig.Types.AudioEncoding.Linear16,
-                    SampleRateHertz = 44100,
+                    SampleRateHertz = hertz_rate,
                     LanguageCode = "uk-UA",
                 }, RecognitionAudio.FromFile(outputFilePath));
 
@@ -246,7 +226,7 @@ namespace MotoCap
                     }
 
                     // Create a channel using the credentials
-                    channel = new Grpc.Core.Channel(SpeechClient.DefaultEndpoint.ToString(), credential.ToChannelCredentials());
+                    //channel = new Grpc.Core.Channel(SpeechClient.DefaultEndpoint.ToString(), credential.ToChannelCredentials());
 
                     // Create the speech client using the custom channel
                     SpeechClientBuilder builder = new SpeechClientBuilder
