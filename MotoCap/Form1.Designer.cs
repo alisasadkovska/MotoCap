@@ -41,6 +41,9 @@
             btn_Key = new Button();
             key_selection_label = new Label();
             voice_status_label = new Label();
+            btnWavPath = new Button();
+            wav_path_label = new Label();
+            btn_convert_speech = new Button();
             ((System.ComponentModel.ISupportInitialize)trackBar1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBar2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBar3).BeginInit();
@@ -156,11 +159,43 @@
             voice_status_label.Size = new Size(0, 25);
             voice_status_label.TabIndex = 14;
             // 
+            // btnWavPath
+            // 
+            btnWavPath.Location = new Point(307, 167);
+            btnWavPath.Name = "btnWavPath";
+            btnWavPath.Size = new Size(107, 38);
+            btnWavPath.TabIndex = 15;
+            btnWavPath.Text = "WAV path";
+            btnWavPath.UseVisualStyleBackColor = true;
+            btnWavPath.Click += btnWavPath_Click;
+            // 
+            // wav_path_label
+            // 
+            wav_path_label.AutoSize = true;
+            wav_path_label.Location = new Point(307, 208);
+            wav_path_label.Name = "wav_path_label";
+            wav_path_label.Size = new Size(202, 25);
+            wav_path_label.TabIndex = 16;
+            wav_path_label.Text = "wav path is not selected";
+            // 
+            // btn_convert_speech
+            // 
+            btn_convert_speech.Location = new Point(307, 119);
+            btn_convert_speech.Name = "btn_convert_speech";
+            btn_convert_speech.Size = new Size(107, 38);
+            btn_convert_speech.TabIndex = 17;
+            btn_convert_speech.Text = "Convert";
+            btn_convert_speech.UseVisualStyleBackColor = true;
+            btn_convert_speech.Click += btn_convert_speech_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(653, 438);
+            Controls.Add(btn_convert_speech);
+            Controls.Add(wav_path_label);
+            Controls.Add(btnWavPath);
             Controls.Add(voice_status_label);
             Controls.Add(key_selection_label);
             Controls.Add(btn_Key);
@@ -198,5 +233,8 @@
         private Button btn_Key;
         private Label key_selection_label;
         private Label voice_status_label;
+        private Button btnWavPath;
+        private Label wav_path_label;
+        private Button btn_convert_speech;
     }
 }
