@@ -4,25 +4,32 @@ using NAudio.Wave;
 using WebRtcVadSharp;
 using Google.Cloud.Speech.V1;
 using Google.Apis.Auth.OAuth2;
-
+using System.Speech.Recognition.SrgsGrammar;
 
 namespace MotoCap
 {
     public partial class Form1 : Form
     {
-        private WaveInEvent waveInEvent;
-        private WaveFileWriter writer;
+        private WaveInEvent waveInEvent, speechWaveInEvent;
+        private WaveFileWriter writer, speechWriter;
+
         private bool isRecording;
+
         private SpeechClient speechClient;
+
         private string outputFolderPath;
+        private string speechOutputFolderPath;
+        private readonly string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        private int speechFragmentId = 1;
+
+        private string wav_output_path;
+
         //private Grpc.Core.Channel channel;
+
         private Equalizer equalizer;
+
         private bool speechDetected;
-        private WebRtcVad vad;
-
         private int hertz_rate = 48000;
-
-
 
         // Define the equalizer bands (adjust as needed)
         private EqualizerBand[] bands = new EqualizerBand[]
@@ -37,7 +44,7 @@ namespace MotoCap
             InitializeComponent();
 
             // Load Google Cloud service account credentials from the JSON file
-            string jsonFilePath = "C:\\Users\\user\\source\\repos\\MotoCap\\MotoCap\\credentials\\api.json";
+            string jsonFilePath = "C:\\Users\\user\\source\\repos\\MotoCap\\MotoCap\\credentials\\credentials.json";
             GoogleCredential credential;
 
             try
@@ -102,12 +109,8 @@ namespace MotoCap
                         WaveFormat = new WaveFormat(hertz_rate, 16, 1) // Update sample rate and bit depth here
                     };
 
-                    
                     waveInEvent.DataAvailable += WaveInEvent_DataAvailable;
                     writer = new WaveFileWriter($"{outputFolderPath}{DateTime.Now:yyyyMMdd_HHmmss}.wav", waveInEvent.WaveFormat);
-
-
-                 
 
                     waveInEvent.StartRecording();
                     isRecording = true;
@@ -129,6 +132,15 @@ namespace MotoCap
 
                 speechDetected = DoesFrameContainSpeech(e.Buffer);
 
+                if (speechDetected)
+                {
+                    StartSpeechRecording();
+                }
+                else
+                {
+                    StopSpeechRecording();
+                }
+
                 // Update the UI control using Invoke
                 voice_status_label.Invoke(new Action(() =>
                 {
@@ -137,12 +149,56 @@ namespace MotoCap
             }
         }
 
-         bool DoesFrameContainSpeech(byte[] audioFrame)
+        private void StartSpeechRecording()
         {
-            using var vad = new WebRtcVad();
-            return vad.HasSpeech(audioFrame, SampleRate.Is48kHz, FrameLength.Is10ms);
+            speechWaveInEvent = new WaveInEvent
+            {
+                WaveFormat = new WaveFormat(hertz_rate, 16, 1) // Update sample rate and bit depth here
+            };
+
+            speechWaveInEvent.DataAvailable += WaveInEvent_SpeechDataAvailable;
+
+            speechWriter = new WaveFileWriter($"{speechOutputFolderPath}{DateTime.Now:yyyyMMdd_HHmmss}.wav", speechWaveInEvent.WaveFormat);
+
+            speechWaveInEvent.StartRecording();
         }
 
+        private async void StopSpeechRecording()
+        {
+            if (speechWaveInEvent != null)
+            {
+                speechWaveInEvent.StopRecording();
+                speechWaveInEvent.Dispose();
+                speechWriter.Close();
+
+
+                // Save recorded audio file
+                string speechOutputFileName = $"SF_{speechFragmentId:D6}_{timestamp}.wav";
+                string speechOutputFilePath = Path.Combine(speechOutputFolderPath, speechOutputFileName);
+                File.Move(speechWriter.Filename, speechOutputFilePath);
+
+                speechFragmentId++; // Increment the speech fragment ID
+            }
+        }
+
+
+        private void WaveInEvent_SpeechDataAvailable(object sender, WaveInEventArgs e)
+        {
+            // Write the recorded audio data to the output file
+            speechWriter.Write(e.Buffer, 0, e.BytesRecorded);
+        }
+
+        bool DoesFrameContainSpeech(byte[] audioFrame)
+        {
+            using var vad = new WebRtcVad()
+            {
+                OperatingMode = OperatingMode.VeryAggressive,
+                FrameLength = FrameLength.Is10ms,
+                SampleRate = SampleRate.Is48kHz,
+            };
+
+            return vad.HasSpeech(audioFrame);
+        }
 
         private async void btnStop_Click(object sender, EventArgs e)
         {
@@ -160,7 +216,6 @@ namespace MotoCap
                 voice_status_label.Enabled = false;
 
                 // Save recorded audio file
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string outputFileName = $"Recording_{timestamp}.wav";
                 string outputFilePath = Path.Combine(outputFolderPath, outputFileName);
                 File.Move(writer.Filename, outputFilePath);
@@ -254,15 +309,43 @@ namespace MotoCap
                 {
                     // Set the selected folder as the output folder path
                     outputFolderPath = folderBrowserDialog.SelectedPath;
+
+                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                    string speechOutputFolderName = $"speechDetection_{timestamp}";
+
+                    speechOutputFolderPath = Path.Combine(outputFolderPath, speechOutputFolderName);
+
+                    // Create the "speechDetection" folder if it doesn't exist
+                    Directory.CreateDirectory(speechOutputFolderPath);
+
                     path_selection_label.Text = outputFolderPath;
                 }
             }
         }
 
+        private void btnWavPath_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "WAV files (*.wav)|*.wav";
+                openFileDialog.Title = "Select a WAV File";
 
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    wav_output_path = openFileDialog.FileName;
+                    // Use the selected WAV file path as needed
+                    // For example, you can display the path in a TextBox:
+                    wav_path_label.Text = wav_output_path;
+                }
+            }
+        }
 
-
-
-
+        private void btn_convert_speech_Click(object sender, EventArgs e)
+        {
+            if (wav_output_path != null)
+            {
+                ConvertAudioToSpeech(wav_output_path);
+            }
+        }
     }
 }
